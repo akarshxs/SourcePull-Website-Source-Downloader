@@ -11,7 +11,7 @@ const posts = [
   },
   {
     tag: 'Analysis',
-    title: 'What your site's JS bundles reveal about your tech stack',
+    title: "What your site's JS bundles reveal about your tech stack",
     excerpt: 'Modern SPAs leak surprising amounts of architectural detail through their bundled scripts. Here is what to look for.',
     readTime: '6 min read',
     date: 'Feb 28, 2025',
