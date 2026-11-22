@@ -82,19 +82,29 @@ export default function DashboardPage() {
   const triggerDownload = (urlToUse?: string) => {
     const finalUrl = urlToUse || downloadUrl;
     if (finalUrl) {
+  const downloadZip = (targetObj?: { blob: Blob; name: string } | null) => {
+    const toUse = targetObj || zipBlob;
+    if (toUse) {
+      const objectUrl = URL.createObjectURL(toUse.blob);
       const a = document.createElement("a");
       a.href = finalUrl;
       a.download = zipBlob?.name || "source.zip";
+      a.href = objectUrl;
+      a.download = toUse.name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
       return;
     }
     if (zipBlob) {
       const objectUrl = URL.createObjectURL(zipBlob.blob);
+    if (downloadUrl) {
       const a = document.createElement("a");
       a.href = objectUrl;
       a.download = zipBlob.name;
+      a.href = downloadUrl;
+      a.download = "source.zip";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -217,6 +227,7 @@ export default function DashboardPage() {
         setDownloadUrl(data.downloadUrl);
       }
 
+      let createdZipBlob: { blob: Blob; name: string; sizeKb: number } | null = null;
       if (data.zipBase64) {
         try {
           const byteChars = atob(data.zipBase64);
@@ -226,6 +237,21 @@ export default function DashboardPage() {
           setZipBlob({ blob, name: data.zipName ?? "source.zip", sizeKb: data.zipSizeKb ?? 0 });
         } catch {
           // Fall back to direct downloadUrl
+          const sliceSize = 1024 * 512;
+          const byteArrays: Uint8Array[] = [];
+          for (let offset = 0; offset < byteChars.length; offset += sliceSize) {
+            const slice = byteChars.slice(offset, offset + sliceSize);
+            const byteNumbers = new Uint8Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+              byteNumbers[i] = slice.charCodeAt(i);
+            }
+            byteArrays.push(byteNumbers);
+          }
+          const blob = new Blob(byteArrays, { type: "application/zip" });
+          createdZipBlob = { blob, name: data.zipName ?? "source.zip", sizeKb: data.zipSizeKb ?? 0 };
+          setZipBlob(createdZipBlob);
+        } catch (e) {
+          console.error("Base64 to blob conversion failed:", e);
         }
       }
 
@@ -248,6 +274,16 @@ export default function DashboardPage() {
       setTimeout(() => {
         triggerDownload(data.downloadUrl);
       }, 600);
+      // Auto-trigger the download directly from in-memory Blob (safe on Vercel/serverless!)
+      if (createdZipBlob) {
+        setTimeout(() => {
+          downloadZip(createdZipBlob);
+        }, 500);
+      } else if (data.downloadUrl) {
+        setTimeout(() => {
+          downloadZip();
+        }, 500);
+      }
 
     } catch (err: unknown) {
       clearInterval(progressTimerRef.current);
@@ -494,6 +530,7 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <motion.button
                     onClick={() => triggerDownload()}
+                    onClick={() => downloadZip()}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="flex items-center justify-center gap-2 w-full py-4 text-xs font-bold text-white bg-[#da291c] hover:bg-[#b01e0a] transition-all uppercase tracking-[1.4px]"
