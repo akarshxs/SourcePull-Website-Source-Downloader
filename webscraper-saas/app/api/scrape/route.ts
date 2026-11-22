@@ -56,7 +56,7 @@ const IMG_EXTS   = new Set([".jpg",".jpeg",".png",".gif",".webp",".svg",".ico","
 const JS_EXTS    = new Set([".js",".mjs",".cjs"]);
 const CSS_EXTS   = new Set([".css",".scss",".sass"]);
 const FONT_EXTS  = new Set([".woff",".woff2",".ttf",".eot",".otf"]);
-const SKIP_EXTS  = new Set([".pdf",".zip",".tar",".gz",".exe",".dmg",".mp4",".mp3",".mov",".avi",".mkv"]);
+const SKIP_EXTS  = new Set([".pdf",".zip",".tar",".gz",".exe",".dmg",".mp4",".mp3",".mov",".avi",".mkv",".webm",".wav",".ogg",".flac",".iso",".bin",".apk"]);
 
 /* Bare hostname: strips www. and port */
 function bareHost(h: string) { return h.replace(/^www\./, "").toLowerCase(); }
@@ -452,6 +452,7 @@ async function scrapeWebsite(
 
     const r = await doFetch(assetUrl, ASSET_HEADERS, 4000);
     if (!r.content || r.status < 200 || r.status >= 400) return;
+    if (r.content.length > 2 * 1024 * 1024) return; // Skip files > 2MB to keep payload serverless-safe
 
     let cat = "other";
     if (IMG_EXTS.has(ext) || r.contentType.startsWith("image/"))        { cat = "images";  stats.images++;  }
@@ -538,7 +539,7 @@ async function createZipBuffer(sourceDir: string): Promise<Buffer> {
     passthrough.on("end", () => resolve(Buffer.concat(chunks)));
     passthrough.on("error", reject);
 
-    const archive = archiver("zip", { zlib: { level: 6 } });
+    const archive = archiver("zip", { zlib: { level: 9 } });
     archive.on("error", reject);
     archive.pipe(passthrough);
     archive.directory(sourceDir, false);
